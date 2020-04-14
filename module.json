@@ -1,0 +1,22 @@
+{
+  "name": "vtta-ambience",
+  "title": "Virtual Tabletop Assets - Ambience",
+  "description": "Diffuses the background image on a scene to make the image seemingly stretch a bit further",
+  "version": "1.0.0",
+  "minimumCoreVersion": "0.5.4",
+  "compatibleCoreVersion": "0.5.4",
+  "author": "Sebastian Will (vttassets@gmail.com)",
+  "languages": [
+    {
+      "lang": "en",
+      "name": "English",
+      "path": "lang/en.json"
+    }
+  ],
+  "esmodules": ["./src/index.js"],
+  "styles": ["./css/default.css"],
+  "packs": [],
+  "url": "https://www.vttassets.com/asset/vtta-ambience",
+  "manifest": "https://www.vttassets.com/manifest/vtta-ambience/stable",
+  "download": ""
+}
