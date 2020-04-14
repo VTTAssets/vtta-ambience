@@ -1,42 +1,128 @@
+import processSource from "./imageProcessor.js";
+
 const createRadialGradient = (width, height, stops) => {
-  var canvas = document.createElement("canvas");
+  let canvas = document.createElement("canvas");
 
   canvas.width = width;
   canvas.height = height;
+  document.body.appendChild(canvas);
+  canvas.style.width = width + "px";
+  canvas.style.height = height + "px";
 
   var ctx = canvas.getContext("2d");
   var gradient = ctx.createRadialGradient(
-    0,
-    0,
-    width,
-    0,
-    0,
-    Math.floor(width / 2)
+    width / 2,
+    height / 2,
+    Math.floor(Math.min(width, height) / 4),
+    width / 2,
+    height / 2,
+    width / 2
   );
-  var stopPoints = Object.keys(stops);
+  gradient.addColorStop(0, "white");
+  gradient.addColorStop(1, "black");
 
-  for (var i = 0, n = stopPoints.length; i < n; i += 1)
-    gradient.addColorStop(parseFloat(stopPoints[i]), stops[stopPoints[i]]);
+  // var stopPoints = Object.keys(stops);
+
+  // for (var i = 0, n = stopPoints.length; i < n; i += 1)
+  //   gradient.addColorStop(parseFloat(stopPoints[i]), stops[stopPoints[i]]);
 
   ctx.fillStyle = gradient;
   ctx.fillRect(0, 0, width, height);
-
+  // var img = canvas.toDataURL("image/png");
+  // document.write('<img src="' + img + '"/>');
   return canvas;
 };
 
+const convertColor = (obj) => {
+  var arr = [64, 128, 192];
+  const toHex = (num) => Number(num).toString(16).padStart(2, "0");
+  const hex = toHex(obj.r) + toHex(obj.g) + toHex(obj.b);
+  const color = parseInt("0x" + hex);
+
+  return {
+    hex: "#" + hex,
+    color: color,
+    alpha: obj.a / 256,
+  };
+};
+
 class AmbienceLayer extends CanvasLayer {
-  constructor() {
+  constructor(canvas) {
+    console.log("Creating ambience layer");
     super();
+    this.visible = true;
+
     this.container = new PIXI.Container();
-    this.mask = new PIXI.Sprite(
+
+    // for (let i = 0; i < 10; i++) {
+    //   let circle = new PIXI.Graphics();
+    //   circle.beginFill(0xff0000, 1);
+    //   circle.drawCircle(0, 0, i);
+    //   circle.endFill();
+    //   circle.x = i;
+    //   circle.y = i;
+    //   circle.visible = true;
+    //   this.container.addChild(circle);
+    // }
+
+    this.addChild(this.container);
+    this.updateMask();
+    const d = canvas.dimensions;
+    console.log(d);
+    let maskWidth = canvas.dimensions.paddingX || 100;
+    let maskHeight = canvas.dimensions.paddingY || 100;
+    console.log(canvas.dimensions);
+    this.lightMask = new PIXI.Sprite(
       new PIXI.Texture(
         new PIXI.BaseTexture(
-          createRadialGradient(200, 200, { 0.0: "black", 1.0: "white" })
+          createRadialGradient(maskWidth, maskHeight, {
+            0.0: "black",
+            0.2: "black",
+            1.0: "white",
+          })
         )
       )
     );
+    this.container.addChild(this.lightMask);
 
     this.addChild(this.container);
+  }
+
+  async update() {
+    let layer = canvas.background;
+    if (layer.source) {
+      canvas.ambience.updateMask();
+      let lightSources = await processSource(layer.source);
+      canvas.ambience.setLightSources(lightSources, layer.width, layer.height);
+    }
+    this.updateMask();
+  }
+
+  updateMask() {
+    this.height = canvas.background.height;
+    this.width = canvas.background.width;
+    console.log("Bounds: ");
+    console.log(canvas.background.getBounds());
+    console.log(canvas.background.getLocalBounds());
+    console.log(canvas.background.getGlobalPosition());
+    return;
+    this.visible = true;
+    // Setup scene mask
+    if (this.mask) this.removeChild(this.mask);
+    this.mask = new PIXI.Graphics();
+    this.addChild(this.mask);
+    const d = canvas.dimensions;
+    this.mask.beginFill(0xffffff);
+    if (canvas.background.img) {
+      this.mask.drawRect(
+        d.paddingX - d.shiftX,
+        d.paddingY - d.shiftY,
+        d.sceneWidth,
+        d.sceneHeight
+      );
+    } else {
+      this.mask.drawRect(0, 0, d.width, d.height);
+    }
   }
 
   async draw() {
@@ -44,26 +130,27 @@ class AmbienceLayer extends CanvasLayer {
   }
 
   setLightSources(lights, width, height) {
-    this.width = width;
-    this.height = height;
     for (let light of lights) {
       console.log("drawing circle");
       console.log(light);
       let circle = new PIXI.Graphics();
-      circle.cacheAsBitmap = true;
+      //circle.cacheAsBitmap = true;
       console.log([light.r, light.g, light.b, light.a]);
-      let color = PIXI.utils.rgb2hex([light.r, light.g, light.b]);
+      let color = convertColor(light);
       console.log(color);
-      circle.beginFill(color, light.a / 255);
-      circle.drawCircle(0, 0, 200);
+      //circle.beginFill(color.color, color.alpha);
+      circle.beginFill(color.color, color.alpha);
+      circle.drawCircle(0, 0, 20);
       circle.endFill();
+      circle.visible = true;
       circle.x = light.x;
       circle.y = light.y;
-      // circle.mask = this.mask;
+      circle.mask = this.lightMask;
 
-      this.container.addChild(circle);
+      this.addChild(circle);
     }
     this.container.visible = true;
+    this.draw();
   }
 }
 
